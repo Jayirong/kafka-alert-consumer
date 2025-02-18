@@ -1,0 +1,4 @@
+com\anemona\kafka_alert_consumer\service\KafkaAlertConsumer.class
+com\anemona\kafka_alert_consumer\KafkaAlertConsumerApplication.class
+com\anemona\kafka_alert_consumer\config\KafkaConsumerConfig.class
+com\anemona\kafka_alert_consumer\dto\AlertaDTO.class
