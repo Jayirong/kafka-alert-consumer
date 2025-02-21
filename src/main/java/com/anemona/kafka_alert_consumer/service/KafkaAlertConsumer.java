@@ -1,7 +1,7 @@
 package com.anemona.kafka_alert_consumer.service;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -12,46 +12,60 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import com.anemona.kafka_alert_consumer.dto.AlertaDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 @Service
 public class KafkaAlertConsumer {
-    
+
     private final RestTemplate restTemplate = new RestTemplate();
+    // El endpoint de aneback; el id que va en la URL es el id del paciente (para pruebas usamos "1")
     private final String ALERTA_ENDPOINT = "http://aneback:8080/api/alertas/ingreso/";
+
+    private final ObjectMapper objectMapper;
+
+    public KafkaAlertConsumer() {
+        this.objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
 
     @KafkaListener(topics = "alertas", groupId = "anemona_alert_group")
     public void listen(AlertaDTO alerta) {
+        try {
+            System.out.println("ALERTA RECIBIDA: " + alerta);
 
-        try{
-            System.out.println("ALERTA RESIVIDAAAAAAASCASDASDA: " + alerta);
+            // Para este flujo de pruebas, omitiremos enviar fecha y hora (aneback se encarga de asignarlas)
+            // Y forzamos que el estado vital que referenciamos sea 1 (debe existir en aneback)
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("descripcion_alerta", alerta.getDescripcion_alerta());
+            payload.put("nivel_alerta", alerta.getNivel_alerta());
+            payload.put("parametro_alterado", alerta.getParametro_alterado());
+            payload.put("visto", alerta.isVisto());
+            // No enviamos fecha ni hora, ni id_paciente (que se obtiene de la URL en aneback)
+            // Construimos el objeto estadoVital con un id existente (1)
+            Map<String, Object> estadoVitalMap = new HashMap<>();
+            estadoVitalMap.put("id_estado", 1);
+            payload.put("estadoVital", estadoVitalMap);
 
-            //seteamos hora y fgecha
-            alerta.setFecha_alerta(LocalDate.now());
-            alerta.setHora_alerta(LocalTime.now());
-
-            //asignamos un id_estado_vital por defecto si no existeWWWW
-            if (alerta.getId_estado_vital() == null){
-                alerta.setId_estado_vital(1L);
-            }
-
-            //url con id del estado, el 1 es para pruebas
+            // La URL usa el id del paciente; para pruebas usamos "1"
             String url = ALERTA_ENDPOINT + "1";
 
-            //configuramos headers
+            // Configuramos los headers y convertimos el payload a JSON
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            String jsonPayload = objectMapper.writeValueAsString(payload);
+            System.out.println("JSON enviado a aneback: " + jsonPayload);
 
-            //request
-            HttpEntity<AlertaDTO> request = new HttpEntity<>(alerta, headers);
-
-            //enviar alerta a aneback
+            // Preparamos la solicitud HTTP y la enviamos
+            HttpEntity<String> request = new HttpEntity<>(jsonPayload, headers);
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+            System.out.println("ALERTA ENVIADA CON ÉXITO, ERÍ TERRIBLE DE BACÁN LOCO: " + response.getStatusCode());
 
-            System.out.println("ALERTA ENBIADAS CON EKSITOOOO DEAAA: " + response.getStatusCode());
         } catch (Exception e) {
-            System.err.println("WATEFOK NO FUNSIONÓOOOO QUE ONDA LOLñÑ: " + e.getMessage());
+            System.err.println("Error en deserialización o procesamiento: " + e.getMessage());
+            e.printStackTrace();
         }
-
     }
-
 }
