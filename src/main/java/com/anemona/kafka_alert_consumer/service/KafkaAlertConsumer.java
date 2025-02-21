@@ -29,6 +29,11 @@ public class KafkaAlertConsumer {
             alerta.setFecha_alerta(LocalDate.now());
             alerta.setHora_alerta(LocalTime.now());
 
+            //asignamos un id_estado_vital por defecto si no existeWWWW
+            if (alerta.getId_estado_vital() == null){
+                alerta.setId_estado_vital(1L);
+            }
+
             //url con id del estado, el 1 es para pruebas
             String url = ALERTA_ENDPOINT + "1";
 
