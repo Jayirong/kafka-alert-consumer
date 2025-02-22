@@ -36,21 +36,33 @@ public class KafkaAlertConsumer {
         try {
             System.out.println("ALERTA RECIBIDA: " + alerta);
 
-            // Para este flujo de pruebas, omitiremos enviar fecha y hora (aneback se encarga de asignarlas)
-            // Y forzamos que el estado vital que referenciamos sea 1 (debe existir en aneback)
+
+            Long idEstadoVital = (alerta.getId_estado_vital() != null) ? alerta.getId_estado_vital() : null;
+
+            if (idEstadoVital == null) {
+                System.err.println("ALERTA RECIBIDA SIN ESTADO VITAL ASOCIADO, SE OMITE EL ENVIO");
+                return;
+            }
+
+            // crear payload
             Map<String, Object> payload = new HashMap<>();
             payload.put("descripcion_alerta", alerta.getDescripcion_alerta());
             payload.put("nivel_alerta", alerta.getNivel_alerta());
             payload.put("parametro_alterado", alerta.getParametro_alterado());
             payload.put("visto", alerta.isVisto());
-            // No enviamos fecha ni hora, ni id_paciente (que se obtiene de la URL en aneback)
-            // Construimos el objeto estadoVital con un id existente (1)
+
+           //asignamos el estado vital recibido en la alerta
             Map<String, Object> estadoVitalMap = new HashMap<>();
-            estadoVitalMap.put("id_estado", 1);
+            estadoVitalMap.put("id_estado", idEstadoVital);
             payload.put("estadoVital", estadoVitalMap);
 
-            // La URL usa el id del paciente; para pruebas usamos "1"
-            String url = ALERTA_ENDPOINT + "1";
+            //url para el post con el id_paciente
+            Long idPaciente = alerta.getId_paciente();
+            if (idPaciente == null) {
+                System.out.println("ALERTA SIN PACIENTE ASOCIADO. SE OMITE EL ENVIO, problemas dentro de la construccion de la url");
+                return;
+            }
+            String url = ALERTA_ENDPOINT + idPaciente;
 
             // Configuramos los headers y convertimos el payload a JSON
             HttpHeaders headers = new HttpHeaders();
